@@ -1,172 +1,102 @@
-# ============================
-# Import Libraries
-# =============================
+import os  # For checking if the model file exists
+import pandas as pd
+from text_preprocessing import preprocess_text
+from data_split import split_dataset, save_splits
+from sklearn.feature_extraction.text import TfidfVectorizer
+from train_nn import SentimentClassifier, prepare_pytorch_data, train_nn_model, validate_model, save_model, test_model
+import torch
+import pickle
 
-# Data manipulation and analysis
-import pandas as pd  # For handling and manipulating tabular data
-
-# Data visualization
-import matplotlib.pyplot as plt  # For creating static plots
-import seaborn as sns  # For creating advanced statistical plots
-
-# Text preprocessing
-import nltk  # Natural Language Toolkit for text processing
-import re  # Regular expressions for text cleaning
-from nltk.corpus import stopwords  # Stopwords for filtering common words
-from nltk.stem import WordNetLemmatizer  # Lemmatizer for reducing words to their base form
-
-# Machine learning utilities
-from sklearn.model_selection import train_test_split  # For splitting the dataset
-from sklearn.feature_extraction.text import TfidfVectorizer  # For text vectorization
-from sklearn.metrics import accuracy_score, classification_report  # For model evaluation
-
-# Miscellaneous
-import numpy as np  # For numerical operations
-import warnings  # To suppress unnecessary warnings in output
-warnings.filterwarnings('ignore')  # Ignore warnings for cleaner output
-
-# Download NLTK resources (if not already downloaded)
-nltk.download('stopwords')  # Download stopwords list
-nltk.download('wordnet')  # Download WordNet for lemmatization
-nltk.download('punkt')  # Download tokenizer for text tokenization
-
-# =============================
-# Load the Dataset
-# =============================
-
-# Load the dataset
+# Step 1: Load the dataset
 df = pd.read_csv('data.csv')
 
-# Drop rows with missing 'Text' values
-df = df.dropna(subset=['Text'])
-
-# Display the first few rows of the dataset
-print("First few rows of the dataset:")
-print(df.head())
-
-# Standardize sentiment labels (remove extra spaces and handle case inconsistencies)
-df['Sentiment'] = df['Sentiment'].str.strip().str.capitalize()
-
-# Define mapping for sentiment categories
-sentiment_mapping = {
-    # Positive emotions
-    'Positive': 'Positive', 'Happiness': 'Positive', 'Joy': 'Positive',
-    'Admiration': 'Positive', 'Affection': 'Positive', 'Excitement': 'Positive',
-    'Contentment': 'Positive', 'Gratitude': 'Positive', 'Hope': 'Positive',
-    'Elation': 'Positive', 'Confidence': 'Positive', 'Pride': 'Positive',
-    'Inspired': 'Positive', 'Optimism': 'Positive', 'Ecstasy': 'Positive',
-    'Celebration': 'Positive', 'Success': 'Positive', 'Heartwarming': 'Positive',
-
-    # Negative emotions
-    'Negative': 'Negative', 'Anger': 'Negative', 'Fear': 'Negative',
-    'Sadness': 'Negative', 'Disgust': 'Negative', 'Frustration': 'Negative',
-    'Jealousy': 'Negative', 'Boredom': 'Negative', 'Anxiety': 'Negative',
-    'Grief': 'Negative', 'Loneliness': 'Negative', 'Heartbreak': 'Negative',
-    'Suffering': 'Negative', 'Desperation': 'Negative', 'Regret': 'Negative',
-    'Hate': 'Negative', 'Isolation': 'Negative', 'Loss': 'Negative',
-
-    # Neutral emotions
-    'Neutral': 'Neutral', 'Curiosity': 'Neutral', 'Calmness': 'Neutral',
-    'Acceptance': 'Neutral', 'Ambivalence': 'Neutral', 'Reflection': 'Neutral',
-    'Mindfulness': 'Neutral', 'Harmony': 'Neutral', 'Tranquility': 'Neutral',
-    'Contemplation': 'Neutral', 'Resilience': 'Neutral', 'Indifference': 'Neutral'
-}
-
-# Map the detailed sentiments to broader categories
-df['Simplified_Sentiment'] = df['Sentiment'].map(sentiment_mapping)
-
-# Drop rows with unmapped sentiments
-df = df.dropna(subset=['Simplified_Sentiment'])
-
-# Display unique values in the simplified sentiment column
-print("\nSimplified Sentiments after re-mapping:")
-print(df['Simplified_Sentiment'].value_counts())
-
-# Plot the distribution of simplified sentiments
-sns.countplot(x='Simplified_Sentiment', data=df, order=['Positive', 'Neutral', 'Negative'])
-plt.title('Simplified Sentiment Distribution')
-plt.show()
-
-# =============================
-# Text Preprocessing
-# =============================
-
-# Initialize lemmatizer and stopwords
-lemmatizer = WordNetLemmatizer()  # For reducing words to their base form
-stop_words = set(stopwords.words('english'))  # Common stopwords in English
-
-# Define a function to preprocess the text
-def preprocess_text(text):
-    """
-    Preprocesses the input text:
-    - Converts to lowercase
-    - Removes URLs, special characters, and numbers
-    - Tokenizes, removes stopwords, and lemmatizes
-    """
-    if not isinstance(text, str) or text.strip() == "":
-        return ""  # Return an empty string for invalid inputs
-    text = text.lower()  # Convert to lowercase
-    text = re.sub(r"http\S+|www\S+", "", text)  # Remove URLs
-    text = re.sub(r"[^a-z\s]", "", text)  # Remove non-alphabetic characters
-    tokens = nltk.word_tokenize(text)  # Tokenize text
-    tokens = [lemmatizer.lemmatize(word) for word in tokens if word not in stop_words]  # Lemmatize and remove stopwords
-    return " ".join(tokens)
-
-# Apply the preprocessing function to the 'Text' column
+# Step 2: Preprocess the text
 df['Clean_Text'] = df['Text'].apply(preprocess_text)
 
-# Display the first few rows of the cleaned data
-print("\nFirst few rows after text preprocessing:")
-print(df[['Text', 'Clean_Text']].head())
+# Simplify sentiment labels
+sentiment_mapping = {
+    'Positive': 'Positive', 'Joy': 'Positive', 'Excitement': 'Positive',
+    'Happiness': 'Positive', 'Gratitude': 'Positive', 'Love': 'Positive',
+    'Negative': 'Negative', 'Sadness': 'Negative', 'Anger': 'Negative',
+    'Frustration': 'Negative', 'Fear': 'Negative', 'Disgust': 'Negative',
+    'Neutral': 'Neutral', 'Calm': 'Neutral', 'Indifference': 'Neutral'
+}
 
-# =============================
-# Splitting the Dataset
-# =============================
+df['Sentiment'] = df['Sentiment'].str.strip().str.capitalize()
+df['Simplified_Sentiment'] = df['Sentiment'].map(sentiment_mapping)
+df = df.dropna(subset=['Simplified_Sentiment'])
 
-# Features and target
-X = df['Clean_Text']  # Preprocessed text data
-y = df['Simplified_Sentiment']  # Target sentiment labels
+# Step 3: Split the dataset
+X_train, X_val, X_test, y_train, y_val, y_test = split_dataset(df)
+save_splits(X_train, X_val, X_test, y_train, y_val, y_test)
 
-# Map sentiment labels to numerical values
-label_mapping = {'Positive': 2, 'Neutral': 1, 'Negative': 0}
-y = y.map(label_mapping)
+# Step 4: Extract Features with TF-IDF
+def extract_features_tfidf(X_train, X_val, X_test):
+    if os.path.exists("tfidf_vectorizer.pkl"):
+        with open("tfidf_vectorizer.pkl", "rb") as file:
+            tfidf_vectorizer = pickle.load(file)
+    else:
+        tfidf_vectorizer = TfidfVectorizer(max_features=5000)
+        X_train_tfidf = tfidf_vectorizer.fit_transform(X_train)
+        with open("tfidf_vectorizer.pkl", "wb") as file:
+            pickle.dump(tfidf_vectorizer, file)
 
-# Split the dataset into training and testing sets (80% train, 20% test)
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X_train_tfidf = tfidf_vectorizer.transform(X_train)
+    X_val_tfidf = tfidf_vectorizer.transform(X_val)
+    X_test_tfidf = tfidf_vectorizer.transform(X_test)
+    return X_train_tfidf, X_val_tfidf, X_test_tfidf, tfidf_vectorizer
+
+
+X_train_tfidf, X_val_tfidf, X_test_tfidf, tfidf_vectorizer = extract_features_tfidf(
+    X_train, X_val, X_test
 )
 
-# Print dataset split statistics
-print(f"\nTraining samples: {len(X_train)}")
-print(f"Testing samples: {len(X_test)}")
+# Prepare PyTorch Tensors
+X_train_tensor, y_train_tensor = prepare_pytorch_data(X_train_tfidf, y_train)
+X_val_tensor, y_val_tensor = prepare_pytorch_data(X_val_tfidf, y_val)
+X_test_tensor, y_test_tensor = prepare_pytorch_data(X_test_tfidf, y_test)
 
-# =============================
-# Feature Extraction with TF-IDF
-# =============================
+# Step 5: Train or Load the Model
+if os.path.exists("sentiment_nn_model.pth"):
+    print("\nLoading existing model...")
+    input_dim = X_train_tfidf.shape[1]
+    hidden_dim = 128
+    output_dim = 3
+    trained_nn_model = SentimentClassifier(input_dim, hidden_dim, output_dim)
+    trained_nn_model.load_state_dict(torch.load("sentiment_nn_model.pth"))
+    trained_nn_model.eval()
+    print("Model loaded successfully.")
+else:
+    print("\nTraining the model...")
+    input_dim = X_train_tfidf.shape[1]
+    hidden_dim = 128
+    output_dim = 3
+    trained_nn_model = train_nn_model(
+        X_train_tensor, y_train_tensor, X_val_tensor, y_val_tensor,
+        input_dim, hidden_dim, output_dim
+    )
+    save_model(trained_nn_model, "sentiment_nn_model.pth")
 
-# Initialize the TF-IDF Vectorizer
-tfidf_vectorizer = TfidfVectorizer(max_features=5000)  # Use top 5000 words
+# Validate the Model
+validate_model(trained_nn_model, X_val_tensor, y_val_tensor)
 
-# Fit and transform the training data
-X_train_tfidf = tfidf_vectorizer.fit_transform(X_train)
+# Test the Model
+test_model(trained_nn_model, X_test_tensor, y_test_tensor)
 
-# Transform the test data
-X_test_tfidf = tfidf_vectorizer.transform(X_test)
+# Test with a Custom Sentence
+def preprocess_and_predict(text, model, vectorizer):
+    cleaned_text = preprocess_text(text)
+    tfidf_features = vectorizer.transform([cleaned_text])
+    tfidf_tensor = torch.tensor(tfidf_features.toarray(), dtype=torch.float32)
+    model.eval()
+    with torch.no_grad():
+        prediction = model(tfidf_tensor)
+        predicted_class = torch.argmax(prediction, dim=1).item()
+    class_labels = {0: 'Negative', 1: 'Neutral', 2: 'Positive'}
+    return class_labels[predicted_class]
 
-# Print the shapes of the resulting matrices
-print(f"\nTF-IDF matrix shape (training): {X_train_tfidf.shape}")
-print(f"TF-IDF matrix shape (testing): {X_test_tfidf.shape}")
 
-# =============================
-# Baseline Model
-# =============================
-
-# Predict the majority class (most frequent class in the training set)
-majority_class = y_train.mode()[0]
-y_pred_baseline = np.full(shape=y_test.shape, fill_value=majority_class)
-
-# Evaluate the baseline model
-print("\nBaseline Model Performance:")
-print(f"Accuracy: {accuracy_score(y_test, y_pred_baseline):.4f}")
-print("Classification Report:")
-print(classification_report(y_test, y_pred_baseline, target_names=label_mapping.keys()))
+new_sentence = "I am happy."
+predicted_sentiment = preprocess_and_predict(new_sentence, trained_nn_model, tfidf_vectorizer)
+print(f"\nCustom Sentence: {new_sentence}")
+print(f"Predicted Sentiment: {predicted_sentiment}")
