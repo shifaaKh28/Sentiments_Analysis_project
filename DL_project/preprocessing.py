@@ -1,5 +1,4 @@
 import warnings
-
 warnings.filterwarnings("ignore")
 
 # Setup & Config
@@ -10,7 +9,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-from transformers import BertTokenizer
+from transformers import DistilBertTokenizer  # Updated to DistilBertTokenizer
+from sklearn.utils import class_weight
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
@@ -30,7 +30,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # Global variables
-DATA_PATH = "data.csv"  # Update path if needed
+DATA_PATH = "sentimentdataset.csv"  # Update path if needed
 
 # Load Dataset
 def load_dataset(path):
@@ -39,137 +39,54 @@ def load_dataset(path):
     print(df.head())
     return df
 
-# Define the mapping dictionary
-sentiment_to_stage = {
-    # Positive sentiments
-    "Positive": "Positive",
-    "Excitement": "Positive",
-    "Contentment": "Positive",
-    "Joy": "Positive",
-    "Happy": "Positive",
-    "Happiness": "Positive",
-    "Gratitude": "Positive",
-    "Admiration": "Positive",
-    "Love": "Positive",
-    "Affection": "Positive",
-    "Hopeful": "Positive",
-    "Anticipation": "Positive",
-    "Enthusiasm": "Positive",
-    "Elated": "Positive",
-    "Euphoria": "Positive",
-    "Inspired": "Positive",
-    "Optimism": "Positive",
-    "Success": "Positive",
-    "Accomplishment": "Positive",
-    "Pride": "Positive",
-    "Compassionate": "Positive",
-    "Free-spirited": "Positive",
-    "Playful": "Positive",
-    "Thrill": "Positive",
-    "Empowerment": "Positive",
-    "Fulfillment": "Positive",
-    "Wonder": "Positive",
-    "Rejuvenation": "Positive",
-    "Awe": "Positive",
-    "Adventure": "Positive",
-    "Harmony": "Positive",
-
-    # Negative sentiments
-    "Negative": "Negative",
-    "Sad": "Negative",
-    "Anger": "Negative",
-    "Loneliness": "Negative",
-    "Grief": "Negative",
-    "Hate": "Negative",
-    "Bitterness": "Negative",
-    "Despair": "Negative",
-    "Betrayal": "Negative",
-    "Frustration": "Negative",
-    "Isolation": "Negative",
-    "Regret": "Negative",
-    "Helplessness": "Negative",
-    "Resentment": "Negative",
-    "Disgust": "Negative",
-    "Heartbreak": "Negative",
-    "Jealousy": "Negative",
-    "Sorrow": "Negative",
-    "Loss": "Negative",
-    "Envy": "Negative",
-    "Melancholy": "Negative",
-    "Anxiety": "Negative",
-    "Darkness": "Negative",
-    "Apprehension": "Negative",
-    "Dismissive": "Negative",
-    "Boredom": "Negative",
-
-    # Neutral sentiments
-    "Neutral": "Neutral",
-    "Ambivalence": "Neutral",
-    "Curiosity": "Neutral",
-    "Indifference": "Neutral",
-    "Acceptance": "Neutral",
-    "Nostalgia": "Neutral",
-    "Calmness": "Neutral",
-    "Reflection": "Neutral",
-    "Confusion": "Neutral",
-    "Serenity": "Neutral",
-    "Determination": "Neutral",
-    "Mindfulness": "Neutral",
-    "Pensive": "Neutral",
-    "Compassion": "Neutral",
-    "Contemplation": "Neutral",
-    "Sympathy": "Neutral",
-    "Motivation": "Neutral",
-}
-
-# Function to map sentiments to broader categories
-def map_sentiment_to_stage(df, mapping):
-    """
-    Maps fine-grained sentiment labels to broader categories (Negative, Positive, Neutral).
-
-    Args:
-        df (pd.DataFrame): The input dataset with a 'Sentiment' column.
-        mapping (dict): A dictionary mapping fine-grained sentiments to broader stages.
-
-    Returns:
-        pd.DataFrame: The updated dataset with a new 'Stage' column.
-    """
-    df['Stage'] = df['Sentiment'].replace(mapping)
-    return df
-
 # Preprocess Dataset
 def preprocess_dataset(df):
-    """
-    Preprocesses the dataset:
-    - Maps sentiments to broader stages
-    - Converts stages to integer labels
-    """
-    # Map fine-grained sentiments to broader categories
-    df = map_sentiment_to_stage(df, sentiment_to_stage)
+    # Map detailed sentiments into three categories: Positive, Neutral, Negative
+    sentiment_mapping = {
+        " Positive  ": "Positive", " Excitement ": "Positive", " Contentment ": "Positive",
+        " Joy ": "Positive", " Happy ": "Positive", " Hopeful ": "Positive", " Gratitude ": "Positive",
+        " Admiration ": "Positive", " Affection ": "Positive", " Serenity ": "Positive", " Elation ": "Positive",
+        " Enthusiasm ": "Positive", " Euphoria ": "Positive", " Amusement ": "Positive",
+        " Sad ": "Negative", " Loneliness ": "Negative", " Grief ": "Negative", " Anger ": "Negative",
+        " Fear ": "Negative", " Frustration ": "Negative", " Bitterness ": "Negative",
+        " Regret ": "Negative", " Despair ": "Negative", " Hate ": "Negative", " Betrayal ": "Negative",
+        " Neutral ": "Neutral", " Confusion ": "Neutral", " Indifference ": "Neutral",
+        " Curiosity ": "Neutral", " Acceptance ": "Neutral", " Calmness ": "Neutral"
+    }
 
-    # Drop rows where the 'Stage' column is NaN (unmapped sentiments)
-    df = df.dropna(subset=["Stage"])
+    # Apply sentiment mapping to the dataset
+    df["Sentiment"] = df["Sentiment"].map(sentiment_mapping)
 
-    # Ensure 'Stage' is a category for efficient storage
-    df["Stage"] = df["Stage"].astype("category")
+    # Drop rows with unmapped sentiments (if any)
+    df = df.dropna(subset=["Sentiment"])
 
-    # Create a mapping for Stage -> Integer
-    stage_to_int = {stage: idx for idx, stage in enumerate(df["Stage"].cat.categories)}
-    print("Stage to Integer Mapping:", stage_to_int)
+    # Map class names to integers
+    class_to_int = {
+        "Positive": 0,
+        "Neutral": 1,
+        "Negative": 2
+    }
 
-    # Map Stage column to integers
-    df["Stage"] = df["Stage"].replace(stage_to_int)
+    # Apply the mapping to the 'Sentiment' column
+    df["Sentiment"] = df["Sentiment"].map(class_to_int)
 
-    # Print unique stages and their counts
-    print("Unique Stages:", df["Stage"].unique())
-    print("Stage Counts:")
-    print(df["Stage"].value_counts())
+    # Calculate class weights for imbalanced dataset
+    class_weights = class_weight.compute_class_weight(
+        class_weight="balanced",
+        classes=np.unique(df["Sentiment"]),
+        y=df["Sentiment"].values
+    )
 
-    return df, stage_to_int
+    # Print unique sentiment labels and their counts
+    print("Unique Sentiments:", df["Sentiment"].unique())
+    print("Sentiment Counts:")
+    print(df["Sentiment"].value_counts())
+
+    return df, class_weights
 
 # Tokenizer Configuration
 PRE_TRAINED_MODEL_NAME = 'distilbert-base-uncased'
-tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)
+tokenizer = DistilBertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)  # Updated tokenizer
 
 def tokenize_sample(sample_text):
     """
