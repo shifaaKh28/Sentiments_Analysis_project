@@ -1,4 +1,4 @@
-DL_project/img1.png
+[DL_project/img1.png](https://github.com/shifaaKh28/Sentiments_Analysis_project/blob/4d744e3f20ffd85adc129bd7dca54aa401f461bb/DL_project/img1.png)
 # Sentiment Analysis Project
 
 This project implements a sentiment analysis pipeline using PyTorch and transformers. The model is designed to classify textual data into sentiments such as Positive, Neutral, and Negative. This README provides an overview of the project structure, functionality, and usage.
