@@ -242,7 +242,6 @@ def main():
         "This is a terrible day. I feel so sad.",
         "I'm not sure how I feel about this.",
         "Life is beautiful and full of joy.",
-        "I feel Neutral today.",
         "It’s just work as usual.",
         "It didn’t really make a strong impression on me.",
         "There were some good points and some bad ones.",
