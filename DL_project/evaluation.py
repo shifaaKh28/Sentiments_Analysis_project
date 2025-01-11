@@ -1,41 +1,67 @@
 import torch
 from tqdm import tqdm
 import numpy as np
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score #For calculating precision, recall, and F1-score.
 
 def eval_model(model, data_loader, loss_fn, device, n_examples):
-    model = model.eval()
-    losses = []
-    correct_predictions = 0
-    all_preds = []
-    all_targets = []
+    """
+    Evaluates a model's performance on a dataset.
 
+    Args:
+        model (torch.nn.Module): The model to be evaluated.
+        data_loader (torch.utils.data.DataLoader): DataLoader providing batches of data for evaluation.
+        loss_fn (torch.nn.Module): Loss function to compute the error.
+        device (torch.device): Device (CPU or GPU) where the computations will be performed.
+        n_examples (int): Total number of examples in the dataset (for accuracy calculation).
+
+    Returns:
+        dict: A dictionary containing evaluation metrics:
+            - "accuracy" (torch.Tensor): Accuracy of the model on the dataset.
+            - "loss" (float): Average loss on the dataset.
+            - "precision" (float): Weighted precision score.
+            - "recall" (float): Weighted recall score.
+            - "f1_score" (float): Weighted F1 score.
+    """
+    model = model.eval()  # Set the model to evaluation mode
+    losses = []  # List to store batch losses
+    correct_predictions = 0  # Counter for correct predictions
+    all_preds = []  # List to store all predictions
+    all_targets = []  # List to store all targets
+
+    # Create a progress bar for the data loader
     data_loader = tqdm(data_loader, desc="Evaluating", unit="batch")
-    with torch.no_grad():
+
+    with torch.no_grad():  # Disable gradient calculation for evaluation
         for d in data_loader:
+            # Extract inputs and targets from the batch
             input_ids = d.get("input_ids")
             attention_mask = d.get("attention_mask")
             targets = d["targets"].to(device)
 
+            # Forward pass depending on the model type
             if input_ids is not None and attention_mask is not None:  # For BERT-based models
                 input_ids = input_ids.to(device)
                 attention_mask = attention_mask.to(device)
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask)
-            else:  # For SimpleNN or similar models
+            else:  # For simpler models like SimpleNN
                 inputs = d["features"].to(device)
                 outputs = model(inputs)
 
+            # Get the predicted class
             _, preds = torch.max(outputs, dim=1)
 
+            # Compute loss
             loss = loss_fn(outputs, targets)
 
-            correct_predictions += torch.sum(preds == targets)
-            losses.append(loss.item())
+            # Update metrics
+            correct_predictions += torch.sum(preds == targets)  # Count correct predictions
+            losses.append(loss.item())  # Append batch loss
 
             # Store predictions and targets for additional metrics
             all_preds.extend(preds.cpu().numpy())
             all_targets.extend(targets.cpu().numpy())
 
+            # Update progress bar with the current average loss
             data_loader.set_postfix(loss=np.mean(losses))
 
     # Calculate additional metrics
