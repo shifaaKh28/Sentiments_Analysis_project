@@ -2,18 +2,27 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # Setup & Config
-import transformers
+import transformers #For tokenization and pre-trained model handling.
 from transformers import AutoTokenizer, AutoModel
 import torch
 import numpy as np
-import pandas as pd
+import pandas as pd #For data manipulation.
 import seaborn as sns
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt #For visualization.
 from transformers import DistilBertTokenizer  # Updated to DistilBertTokenizer
 from sklearn.utils import class_weight
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+"""
+Module for preprocessing sentiment datasets and configuring settings for analysis.
 
+This module includes:
+- Loading and preprocessing the dataset.
+- Mapping sentiment categories to standardized classes.
+- Configuring tokenizer and device settings.
+- Utilities for handling class imbalances and tokenizing samples.
+
+"""
 # Visualization settings
 sns.set(style="whitegrid", palette="muted", font_scale=1.2)
 HAPPY_COLORS_PALETTE = ["#01BEFE", "#FFDD00", "#FF7D00", "#FF006D", "#ADFF02", "#8F00FF"]
@@ -34,6 +43,15 @@ DATA_PATH = "sentimentdataset.csv"  # Update path if needed
 
 # Load Dataset
 def load_dataset(path):
+    """
+    Loads the dataset from a CSV file and displays a preview.
+
+    Args:
+        path (str): Path to the dataset file.
+
+    Returns:
+        DataFrame: Loaded dataset.
+    """
     df = pd.read_csv(path)
     print("Dataset Preview:")
     print(df.head())
@@ -137,7 +155,13 @@ tokenizer = DistilBertTokenizer.from_pretrained(PRE_TRAINED_MODEL_NAME)  # Updat
 
 def tokenize_sample(sample_text):
     """
-    Tokenize a single text sample and return its tokens and token IDs.
+    Tokenizes a single text sample using the pre-trained tokenizer.
+
+    Args:
+        sample_text (str): The text to tokenize.
+
+    Returns:
+        tuple: Tokens and token IDs.
     """
     tokens = tokenizer.tokenize(sample_text)
     token_ids = tokenizer.convert_tokens_to_ids(tokens)
