@@ -14,6 +14,16 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 import torch
 from torch import nn
 
+"""
+Main script for training, validating, and testing a sentiment analysis model.
+
+This script includes:
+- Data loading and preprocessing
+- Training and validation loops
+- Model evaluation on the test dataset
+- Visualization of results and predictions
+- Saving and loading trained models
+"""
 
 # Add Confusion Matrix Plotting
 def plot_confusion_matrix(y_true, y_pred, class_names):
