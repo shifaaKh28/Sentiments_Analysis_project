@@ -83,4 +83,6 @@ Use the `main.py` script to generate predictions for sample texts. Modify the `s
 - **Training Metrics**: Plots for training/validation loss and accuracy over epochs.
 - **Confusion Matrix**: Heatmap for evaluating model predictions on the test dataset.
 - **Sentiment Distribution**: Bar chart of sentiment classes in the dataset.
-
+![image_alt](https://github.com/shifaaKh28/Sentiments_Analysis_project/blob/main/DL_project/Sentiment%20Distribution.png)
+![image_alt](https://github.com/shifaaKh28/Sentiments_Analysis_project/blob/main/DL_project/Training%20Metrics.png)
+![image_alt](https://github.com/shifaaKh28/Sentiments_Analysis_project/blob/main/DL_project/Confusion%20Matrix.png)
