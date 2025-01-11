@@ -1,18 +1,51 @@
-import torch
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
+import torch #Provides tensor operations and deep learning functionalities.
+from torch.utils.data import Dataset #Base class for custom datasets.
+from torch.utils.data import DataLoader #Utility for creating data loader
 
 class GPReviewDataset(Dataset):
+    """
+    Custom Dataset class for processing reviews and corresponding sentiment targets.
+
+    Attributes:
+        reviews (array-like): Collection of review texts.
+        targets (array-like): Sentiment labels for the reviews.
+        tokenizer (transformers tokenizer): Tokenizer for encoding the review texts.
+        max_len (int): Maximum length for tokenized sequences.
+    """
     def __init__(self, reviews, targets, tokenizer, max_len):
+        """
+        Initializes the dataset with reviews, targets, tokenizer, and max sequence length.
+
+        Args:
+            reviews (array-like): Collection of review texts.
+            targets (array-like): Sentiment labels for the reviews.
+            tokenizer (transformers tokenizer): Tokenizer for encoding the review texts.
+            max_len (int): Maximum length for tokenized sequences.
+        """
         self.reviews = reviews
         self.targets = targets
         self.tokenizer = tokenizer
         self.max_len = max_len
 
     def __len__(self):
+        """
+        Returns the number of reviews in the dataset.
+
+        Returns:
+            int: Number of reviews.
+        """
         return len(self.reviews)
 
     def __getitem__(self, item):
+        """
+        Retrieves a single data point from the dataset, including tokenized inputs and targets.
+
+        Args:
+            item (int): Index of the review to retrieve.
+
+        Returns:
+            dict: Contains tokenized input IDs, attention mask, and target label.
+        """
         review = str(self.reviews[item])
         target = self.targets[item]
 
@@ -36,6 +69,18 @@ class GPReviewDataset(Dataset):
 
 
 def create_data_loader(df, tokenizer, max_len, batch_size):
+    """
+    Creates a DataLoader for batching and shuffling the dataset.
+
+    Args:
+        df (DataFrame): DataFrame containing the dataset with 'Text' and 'Sentiment' columns.
+        tokenizer (transformers tokenizer): Tokenizer for encoding the review texts.
+        max_len (int): Maximum length for tokenized sequences.
+        batch_size (int): Number of samples per batch.
+
+    Returns:
+        DataLoader: PyTorch DataLoader for the dataset.
+    """
     dataset = GPReviewDataset(
         reviews=df.Text.to_numpy(),
         targets=df.Sentiment.to_numpy(),
@@ -51,6 +96,18 @@ def create_data_loader(df, tokenizer, max_len, batch_size):
     )
 
 def __getitem__(self, index):
+    """
+    Retrieves a single data point from an external dataset and handles errors gracefully.
+
+    Args:
+        index (int): Index of the data point to retrieve.
+
+    Returns:
+        dict: Contains raw text and the target label.
+
+    Raises:
+        Exception: If an error occurs during data retrieval or conversion.
+    """
     data = self.data.iloc[index]
     target = data['Sentiment']
 
@@ -63,3 +120,4 @@ def __getitem__(self, index):
     except Exception as e:
         print(f"Error at index {index}: {target}, Error: {e}")
         raise
+
