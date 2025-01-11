@@ -49,3 +49,17 @@ def create_data_loader(df, tokenizer, max_len, batch_size):
         num_workers=0,  # Set to 0 for debugging and compatibility
         shuffle=True
     )
+
+def __getitem__(self, index):
+    data = self.data.iloc[index]
+    target = data['Sentiment']
+
+    try:
+        target = int(target)  # Explicitly cast to int
+        return {
+            'text': data['Text'],  # Replace 'Text' with your text column name
+            'targets': torch.tensor(target, dtype=torch.long)
+        }
+    except Exception as e:
+        print(f"Error at index {index}: {target}, Error: {e}")
+        raise
