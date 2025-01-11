@@ -1,13 +1,11 @@
 import os  # Import for checking file existence
-
 import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
-
 from preprocessing import load_dataset, preprocess_dataset, tokenizer
-from visualization import plot_sentiment_distribution, visualize_text_length, plot_training_metrics
+from visualization import plot_sentiment_distribution,  plot_training_metrics
 from data_loader import create_data_loader
 from models import SentimentClassifier
 from training import train_epoch
@@ -15,7 +13,6 @@ from evaluation import eval_model
 from transformers import AdamW, get_linear_schedule_with_warmup
 import torch
 from torch import nn
-
 
 
 # Add Confusion Matrix Plotting
@@ -67,6 +64,7 @@ def test_model(model, test_data_loader, loss_fn, device, n_examples):
     print(f"Precision: {metrics['precision']:.4f}, Recall: {metrics['recall']:.4f}, F1 Score: {metrics['f1_score']:.4f}")
     return metrics
 
+
 def predict_sentiment_with_probabilities(model, tokenizer, text, device, class_names):
     """
     Predict the sentiment of a given text and display probabilities for all classes.
@@ -96,6 +94,7 @@ def predict_sentiment_with_probabilities(model, tokenizer, text, device, class_n
 
     return prob_dict, predicted_class
 
+
 def run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, scheduler, device, df_train, df_val, epochs):
     """
     Training and validation loop.
@@ -123,6 +122,7 @@ def run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, 
         history['val_acc'].append(val_acc.item())
 
     return history
+
 
 def save_splits(df_train, df_val, df_test):
     """
@@ -164,7 +164,6 @@ def load_or_create_splits(df):
         raise
 
 
-
 def main():
     # Load and preprocess the dataset
     df = load_dataset("data.csv")
@@ -179,7 +178,6 @@ def main():
 
     # Visualization
     plot_sentiment_distribution(df, class_names)
-    visualize_text_length(df, title="Filtered Dataset")
 
     # Load or create splits
     df_train, df_val, df_test = load_or_create_splits(df)
@@ -251,18 +249,19 @@ def main():
         "The weather is perfect for a walk in the park.",
         "I hate eating FLAFEL ",
         "I regret the decision I made yesterday.",
-        "Feeling a sense of emptiness after a close friend moves away. Farewells are always sad. ",
+        "Feeling a sense of emptiness after a close friend moves away. Farewells are always sad.",
         "I am angry.",
         "I’m disappointed by the results.",
-
     ]
 
     print("\nPredictions with Probabilities for Sample Texts:")
     for text in sample_texts:
         probabilities, predicted_label = predict_sentiment_with_probabilities(model, tokenizer, text, device, class_names)
+        print("================================================================================================================")
         print(f"Text: {text}")
         print("Probabilities:", probabilities)
         print("Predicted Sentiment:", predicted_label)
+        print("================================================================================================================")
 
 
 if __name__ == "__main__":
