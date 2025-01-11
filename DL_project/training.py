@@ -1,30 +1,64 @@
-from data_loader import create_data_loader
-from preprocessing import load_dataset, preprocess_dataset, tokenizer
+import torch
+from tqdm import tqdm
+import numpy as np #For numerical computations.
 
-"""
-Module for testing the DataLoader functionality.
+def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
+    """
+    Trains the model for one epoch.
 
-This script:
-- Loads and preprocesses the dataset.
-- Creates a DataLoader for batching and shuffling the data.
-- Iterates over the DataLoader to validate its output.
-"""
+    Args:
+        model (torch.nn.Module): The model to be trained.
+        data_loader (torch.utils.data.DataLoader): DataLoader providing batches of data.
+        loss_fn (torch.nn.Module): Loss function to compute the error.
+        optimizer (torch.optim.Optimizer): Optimizer to update model parameters.
+        device (torch.device): Device (CPU or GPU) where the computations will be performed.
+        scheduler (torch.optim.lr_scheduler, optional): Learning rate scheduler for adaptive learning rates.
+        n_examples (int): Total number of examples in the dataset (for accuracy calculation).
 
-# Load the dataset
-df = load_dataset("data.csv")  # Replace "data.csv" with the actual dataset path
-df, df_filtered = preprocess_dataset(df)  # Preprocess the dataset
+    Returns:
+        tuple: (accuracy, average_loss)
+            - accuracy (torch.Tensor): Training accuracy for the epoch.
+            - average_loss (float): Average training loss for the epoch.
+    """
+    model = model.train()  # Set the model to training mode
+    losses = []  # List to store batch losses
+    correct_predictions = 0  # Counter for correct predictions
 
-# Configuration for DataLoader
-MAX_LEN = 50  # Maximum sequence length for tokenization
-BATCH_SIZE = 8  # Number of samples per batch
+    # Create a progress bar for the data loader
+    data_loader = tqdm(data_loader, desc="Training", unit="batch")
 
-# Create DataLoader for training
-train_data_loader = create_data_loader(df, tokenizer, MAX_LEN, BATCH_SIZE)
+    for d in data_loader:
+        # Extract inputs and targets from the batch
+        input_ids = d.get("input_ids")
+        attention_mask = d.get("attention_mask")
+        targets = d["targets"].squeeze().to(device)  # Move targets to the specified device
 
-# Validate DataLoader by inspecting the first batch
-for batch in train_data_loader:
-    print("Batch Keys:", batch.keys())  # Output keys of the batch dictionary
-    print("Input IDs Shape:", batch['input_ids'].shape)  # Shape of tokenized input IDs
-    print("Attention Mask Shape:", batch['attention_mask'].shape)  # Shape of attention masks
-    print("Targets Shape:", batch['targets'].shape)  # Shape of target labels
-    break  # Exit after processing the first batch
+        # Forward pass depending on the model type
+        if input_ids is not None and attention_mask is not None:  # For models like BERT
+            input_ids = input_ids.to(device)
+            attention_mask = attention_mask.to(device)
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
+        else:  # For simpler models like SimpleNN
+            inputs = d["features"].to(device)
+            outputs = model(inputs)
+
+        # Get the predicted class
+        _, preds = torch.max(outputs, dim=1)
+
+        # Compute loss
+        loss = loss_fn(outputs, targets)
+        correct_predictions += torch.sum(preds == targets)  # Count correct predictions
+        losses.append(loss.item())  # Append batch loss
+
+        # Backward pass and optimization
+        loss.backward()  # Compute gradients
+        optimizer.step()  # Update model parameters
+        if scheduler:  # Update the learning rate if scheduler is provided
+            scheduler.step()
+        optimizer.zero_grad()  # Reset gradients for the next iteration
+
+        # Update progress bar with the current average loss
+        data_loader.set_postfix(loss=np.mean(losses))
+
+    # Calculate overall accuracy and average loss
+    return correct_predictions.double() / n_examples, np.mean(losses)
