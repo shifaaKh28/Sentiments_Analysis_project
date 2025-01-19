@@ -1,11 +1,11 @@
 import torch
 from tqdm import tqdm
 import numpy as np
-from sklearn.metrics import precision_score, recall_score, f1_score #For calculating precision, recall, and F1-score.
+from sklearn.metrics import precision_score, recall_score, f1_score
 
-def eval_model(model, data_loader, loss_fn, device, n_examples):
+def eval_model(model, data_loader, loss_fn, device, n_examples, class_names):
     """
-    Evaluates a model's performance on a dataset.
+    Evaluates a model's performance on a dataset, including per-label statistics.
 
     Args:
         model (torch.nn.Module): The model to be evaluated.
@@ -13,6 +13,7 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
         loss_fn (torch.nn.Module): Loss function to compute the error.
         device (torch.device): Device (CPU or GPU) where the computations will be performed.
         n_examples (int): Total number of examples in the dataset (for accuracy calculation).
+        class_names (list): List of class names corresponding to the labels.
 
     Returns:
         dict: A dictionary containing evaluation metrics:
@@ -21,6 +22,7 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
             - "precision" (float): Weighted precision score.
             - "recall" (float): Weighted recall score.
             - "f1_score" (float): Weighted F1 score.
+            - "per_label_metrics" (dict): Precision, recall, and F1 score for each label.
     """
     model = model.eval()  # Set the model to evaluation mode
     losses = []  # List to store batch losses
@@ -69,10 +71,26 @@ def eval_model(model, data_loader, loss_fn, device, n_examples):
     recall = recall_score(all_targets, all_preds, average="weighted", zero_division=0)
     f1 = f1_score(all_targets, all_preds, average="weighted", zero_division=0)
 
+    # Calculate per-label metrics
+    per_label_precision = precision_score(all_targets, all_preds, average=None, zero_division=0)
+    per_label_recall = recall_score(all_targets, all_preds, average=None, zero_division=0)
+    per_label_f1 = f1_score(all_targets, all_preds, average=None, zero_division=0)
+
+    # Organize per-label metrics in a dictionary
+    per_label_metrics = {
+        class_names[i]: {
+            "precision": per_label_precision[i],
+            "recall": per_label_recall[i],
+            "f1_score": per_label_f1[i],
+        }
+        for i in range(len(class_names))
+    }
+
     return {
         "accuracy": correct_predictions.double() / n_examples,
         "loss": np.mean(losses),
         "precision": precision,
         "recall": recall,
-        "f1_score": f1
+        "f1_score": f1,
+        "per_label_metrics": per_label_metrics
     }
