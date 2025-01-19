@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from transformers import AutoModel
 
@@ -14,3 +15,4 @@ class SentimentClassifier(nn.Module):
         cls_output = outputs[0][:, 0, :]  # Use the representation of the [CLS] token
         cls_output = self.dropout(cls_output)
         return self.out(cls_output)
+
