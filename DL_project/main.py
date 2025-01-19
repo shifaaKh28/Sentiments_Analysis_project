@@ -1,29 +1,19 @@
-import os  # Import for checking file existence
+import os
 import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
-
-from preprocessing import load_dataset, preprocess_dataset, tokenizer
-from visualization import plot_sentiment_distribution,  plot_training_metrics
-from data_loader import create_data_loader
-from models import SentimentClassifier
-from training import train_epoch
-from evaluation import eval_model
 from transformers import AdamW, get_linear_schedule_with_warmup
 import torch
 from torch import nn
 
-"""
-Main script for training, validating, and testing a sentiment analysis model.
+from preprocessing import load_dataset, preprocess_dataset, tokenizer
+from visualization import plot_sentiment_distribution, plot_training_metrics
+from data_loader import create_data_loader
+from models import SentimentClassifier
+from training import train_epoch
+from evaluation import eval_model
 
-This script includes:
-- Data loading and preprocessing
-- Training and validation loops
-- Model evaluation on the test dataset
-- Visualization of results and predictions
-- Saving and loading trained models
-"""
 
 # Add Confusion Matrix Plotting
 def plot_confusion_matrix(y_true, y_pred, class_names):
@@ -65,13 +55,20 @@ def test_model_with_cm(model, test_data_loader, loss_fn, device, class_names):
     return all_preds, all_labels
 
 
-def test_model(model, test_data_loader, loss_fn, device, n_examples):
+def test_model(model, test_data_loader, loss_fn, device, n_examples, class_names):
     """
-    Evaluate the model on the test dataset.
+    Evaluate the model on the test dataset and display per-label statistics.
     """
-    metrics = eval_model(model, test_data_loader, loss_fn, device, n_examples)
-    print(f"Test Accuracy: {metrics['accuracy']:.4f}")
-    print(f"Precision: {metrics['precision']:.4f}, Recall: {metrics['recall']:.4f}, F1 Score: {metrics['f1_score']:.4f}")
+    metrics = eval_model(model, test_data_loader, loss_fn, device, n_examples, class_names)
+    print(f"Test Loss: {metrics['loss']:.4f}, Test Accuracy: {metrics['accuracy']:.4f}")
+    print(
+        f"Precision: {metrics['precision']:.4f}, Recall: {metrics['recall']:.4f}, F1 Score: {metrics['f1_score']:.4f}")
+
+    print("\nPer-label statistics:")
+    for label, stats in metrics["per_label_metrics"].items():
+        print(
+            f"'{label}': Precision: {stats['precision']:.4f}, Recall: {stats['recall']:.4f}, F1 Score: {stats['f1_score']:.4f}")
+
     return metrics
 
 
@@ -105,9 +102,10 @@ def predict_sentiment_with_probabilities(model, tokenizer, text, device, class_n
     return prob_dict, predicted_class
 
 
-def run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, scheduler, device, df_train, df_val, epochs):
+def run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, scheduler, device, df_train, df_val,
+                 epochs, class_names):
     """
-    Training and validation loop.
+    Training and validation loop with tracking of train and validation errors.
     """
     history = {
         'train_loss': [],
@@ -118,10 +116,11 @@ def run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, 
 
     for epoch in range(epochs):
         print(f"Epoch {epoch + 1}/{epochs}")
-        train_acc, train_loss = train_epoch(model, train_data_loader, loss_fn, optimizer, device, scheduler, len(df_train))
+        train_acc, train_loss = train_epoch(model, train_data_loader, loss_fn, optimizer, device, scheduler,
+                                            len(df_train))
         print(f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc:.4f}")
 
-        val_metrics = eval_model(model, val_data_loader, loss_fn, device, len(df_val))
+        val_metrics = eval_model(model, val_data_loader, loss_fn, device, len(df_val), class_names)
         val_acc, val_loss = val_metrics['accuracy'], val_metrics['loss']
         print(f"Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_acc:.4f}")
 
@@ -175,6 +174,9 @@ def load_or_create_splits(df):
 
 
 def main():
+    """
+    Main function for training, evaluating, and testing the sentiment classification model.
+    """
     # Load and preprocess the dataset
     df = load_dataset("data.csv")
     df, class_weights = preprocess_dataset(df)
@@ -186,20 +188,20 @@ def main():
     df = df.dropna(subset=['Sentiment'])
     df = df[df['Sentiment'].isin([0, 1, 2])]
 
-    # Visualization
+    # Visualize sentiment distribution
     plot_sentiment_distribution(df, class_names)
 
     # Load or create splits
     df_train, df_val, df_test = load_or_create_splits(df)
 
-    # Data Loaders
+    # Create data loaders
     MAX_LEN = 50
     BATCH_SIZE = 16
     train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN, BATCH_SIZE)
     val_data_loader = create_data_loader(df_val, tokenizer, MAX_LEN, BATCH_SIZE)
     test_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN, BATCH_SIZE)
 
-    # Model Initialization
+    # Initialize the model
     PRE_TRAINED_MODEL_NAME = 'distilbert-base-uncased'
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -211,7 +213,7 @@ def main():
 
     # Training setup
     model_path = "sentiment_classifier.pth"
-    EPOCHS = 20
+    EPOCHS = 10
     LEARNING_RATE = 1e-5
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, correct_bias=False)
     scheduler = get_linear_schedule_with_warmup(
@@ -220,16 +222,16 @@ def main():
         num_training_steps=len(train_data_loader) * EPOCHS
     )
 
-    # Check if model already trained
+    # Train or load the model
     if os.path.exists(model_path):
         print(f"Model found at {model_path}. Loading the model...")
         model.load_state_dict(torch.load(model_path))
         print("Model loaded successfully!")
     else:
         print(f"No trained model found at {model_path}. Training a new model...")
-        history = run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, scheduler, device, df_train, df_val, EPOCHS)
+        history = run_training(model, train_data_loader, val_data_loader, loss_fn, optimizer, scheduler, device, df_train, df_val, EPOCHS, class_names)
 
-        # Save training history
+        # Plot training history
         plot_training_metrics(history)
 
         # Save the trained model
@@ -238,9 +240,9 @@ def main():
 
     # Evaluate on the test dataset
     print("\nEvaluating on Test Dataset:")
-    test_metrics = test_model(model, test_data_loader, loss_fn, device, len(df_test))
+    test_metrics = test_model(model, test_data_loader, loss_fn, device, len(df_test), class_names)
 
-    # Generate Confusion Matrix for the test dataset
+    # Generate Confusion Matrix
     print("\nGenerating Confusion Matrix for Test Dataset:")
     test_model_with_cm(model, test_data_loader, loss_fn, device, class_names)
 
@@ -254,24 +256,22 @@ def main():
         "It didn’t really make a strong impression on me.",
         "There were some good points and some bad ones.",
         "It’s just another routine day.",
-        "I love spending time with my family and friends.",
         "I'm so proud of what I achieved.",
         "The weather is perfect for a walk in the park.",
         "I hate eating FLAFEL ",
         "I regret the decision I made yesterday.",
         "Feeling a sense of emptiness after a close friend moves away. Farewells are always sad.",
         "I am angry.",
-        "I’m disappointed by the results.",
     ]
 
     print("\nPredictions with Probabilities for Sample Texts:")
     for text in sample_texts:
         probabilities, predicted_label = predict_sentiment_with_probabilities(model, tokenizer, text, device, class_names)
-        print("================================================================================================================")
+        print("=" * 100)
         print(f"Text: {text}")
         print("Probabilities:", probabilities)
         print("Predicted Sentiment:", predicted_label)
-        print("================================================================================================================")
+        print("=" * 100)
 
 
 if __name__ == "__main__":
