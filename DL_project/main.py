@@ -247,29 +247,26 @@ def main():
     test_model_with_cm(model, test_data_loader, loss_fn, device, class_names)
 
     # Predict sentiments for sample texts
+    # Predict sentiments for sample texts
     sample_texts = [
-        # ". I’m so grateful for the amazing computer science professors at Ariel University!.",
-        # "I am so happy and excited about this project!",
-        # "This is a terrible day. I feel so sad.",
-        # "I'm not sure how I feel about this.",
-        # "Life is beautiful and full of joy.",
-        # "It’s just work as usual.",
-        # "It didn’t really make a strong impression on me.",
-        # "There were some good points and some bad ones.",
-        # "It’s just another routine day.",
-        # "I'm so proud of what I achieved.",
-        # "The weather is perfect for a walk in the park.",
+        "I am so happy and excited about this project!",
+        "This is a terrible day. I feel so sad.",
+        "I'm not sure how I feel about this.",
+        "Life is beautiful and full of joy.",
+        "It’s just work as usual.",
+        "It didn’t really make a strong impression on me.",
+        "There were some good points and some bad ones.",
+        "It’s just another routine day.",
+        "I love spending time with my family and friends.",
+        "I'm so proud of what I achieved.",
+        "The weather is perfect for a walk in the park.",
         "I hate eating FLAFEL ",
         "I regret the decision I made yesterday.",
         "Feeling a sense of emptiness after a close friend moves away. Farewells are always sad.",
         "I am angry.",
-        "I love studying at Ariel University! The professors are amazing.",
-        "This project is so difficult; I can't figure it out.",
-        "I'm neutral about this subject, it's neither good nor bad.",
-        "What a great experience learning about deep learning!",
-        "The campus cafeteria food could be better.",
-        "I hate FLAFEL"
+        "I’m disappointed by the results.",
     ]
+
 
     print("\nPredictions with Probabilities for Sample Texts:")
     for text in sample_texts:
