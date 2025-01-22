@@ -114,7 +114,7 @@ def __getitem__(self, index):
     try:
         target = int(target)  # Explicitly cast to int
         return {
-            'text': data['Text'],  # Replace 'Text' with your text column name
+            'text': data['Text'],  
             'targets': torch.tensor(target, dtype=torch.long)
         }
     except Exception as e:
