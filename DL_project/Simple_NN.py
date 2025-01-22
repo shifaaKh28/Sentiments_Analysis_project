@@ -188,7 +188,7 @@ def simple_nn_evaluation():
         "I'm not sure how to feel about this update.",
         "The service was fantastic and exceeded expectations!",
         "This is just another average day."
-    ]
+   ]
     predict_examples(model, vectorizer, examples, device="cpu")
 
 # Main function
