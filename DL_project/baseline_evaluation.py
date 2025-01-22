@@ -73,12 +73,10 @@ if __name__ == "__main__":
 
     # Example sentences
     example_sentences = [
-        "I love studying at Ariel University! The professors are amazing.",
-        "This project is so difficult; I can't figure it out.",
-        "I'm neutral about this subject, it's neither good nor bad.",
-        "What a great experience learning about deep learning!",
-        "The campus cafeteria food could be better.",
-        "I hate FLAFEL"
+        "I love the new updates to the app! It works flawlessly now.",
+        "The service was really disappointing and slow.",
+        "I'm not sure how I feel about the new feature."
     ]
+
     print("\nRunning Baseline Model on Test Dataset with Example Sentences:")
     baseline_model(df_train=None, df_val=None, df_test=df_test, example_sentences=example_sentences)
